@@ -1,40 +1,50 @@
+# ─────────────────────────────────────────────
+#  Elshan & Anil Games
+#  app.py — Flask + Flask-SocketIO
+#  ⚠️ eventlet.monkey_patch() باید قبل از هر import دیگری باشد
+# ─────────────────────────────────────────────
+
+import eventlet
+eventlet.monkey_patch()
+
 import os
+import json
 import random
 import string
 import threading
-from flask import Flask, render_template, request, jsonify, session
+
+from flask import Flask, render_template, request, jsonify
 from flask_socketio import SocketIO, emit, join_room, leave_room
 
 # ─────────────────────────────────────────────
-#  Elshan & Anil Games
-#  Live chat + 2-player game lobbies
-#  No database — everything in memory
-#  Max 4 concurrent connections
+#  تنظیمات کلی
 # ─────────────────────────────────────────────
-
-MAX_CONNECTIONS = 4
+MAX_CONNECTIONS = 4  # حداکثر اتصال همزمان کل سیستم
 
 app = Flask(__name__)
-app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "elshan-anil-secret")
+app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "elshan-anil-secret-key-2025")
 
 socketio = SocketIO(
     app,
     cors_allowed_origins="*",
     async_mode="eventlet",
-    max_http_buffer_size=12 * 1024 * 1024,  # اجازه‌ی ارسال فایل تا ~12MB
+    max_http_buffer_size=12 * 1024 * 1024,  # تا ~12MB برای فایل‌های base64
 )
 
-# ─── State (in-memory) ───────────────────────
+# ─────────────────────────────────────────────
+#  State (in-memory — بدون دیتابیس)
+# ─────────────────────────────────────────────
 lock = threading.Lock()
-active_connections = 0            # تعداد اتصال‌های همزمان کل سیستم
+active_connections = 0            # تعداد اتصال‌های همزمان
 online_users = {}                 # sid -> username
-game_rooms = {}                   # room_id -> { game, players: [sid], started: bool, state: {} }
-chat_history = []                 # (اختیاری) فقط برای دیباگ — به کلاینت نمی‌فرستیم
-MAX_CHAT_HISTORY = 50
+game_rooms = {}                   # room_id -> { game, players: [sid], started, usernames: {} }
 
 
-# ─── Helpers ─────────────────────────────────
+# ─────────────────────────────────────────────
+#  Helper Functions
+# ─────────────────────────────────────────────
 def gen_room_id(length=6):
+    """تولید شناسه یکتا برای اتاق بازی."""
     chars = string.ascii_lowercase + string.digits
     while True:
         rid = "".join(random.choice(chars) for _ in range(length))
@@ -43,7 +53,7 @@ def gen_room_id(length=6):
 
 
 def get_games_list():
-    """لیست بازی‌ها رو از static/games/*/game.json می‌خونه."""
+    """خواندن لیست بازی‌ها از static/games/*/game.json"""
     games_dir = os.path.join(app.static_folder, "games")
     games = []
     if not os.path.isdir(games_dir):
@@ -52,20 +62,22 @@ def get_games_list():
         meta_path = os.path.join(games_dir, name, "game.json")
         if os.path.isfile(meta_path):
             try:
-                import json
                 with open(meta_path, "r", encoding="utf-8") as f:
                     meta = json.load(f)
                 meta.setdefault("id", name)
                 meta.setdefault("name", name)
                 meta.setdefault("description", "")
                 meta.setdefault("icon", "🎮")
+                meta.setdefault("players", 2)
                 games.append(meta)
             except Exception as e:
                 print(f"[games] خطا در خواندن {meta_path}: {e}")
     return games
 
 
-# ─── Routes ──────────────────────────────────
+# ─────────────────────────────────────────────
+#  Routes
+# ─────────────────────────────────────────────
 @app.route("/")
 def index():
     return render_template("index.html")
@@ -83,23 +95,21 @@ def games():
 
 @app.route("/play")
 def play():
-    """صفحه‌ی اجرای بازی. با ?room=xxxx وارد می‌شه."""
+    """صفحه اجرای بازی. با ?room=xxxx وارد می‌شود."""
     room_id = request.args.get("room", "").strip()
     game_id = request.args.get("game", "").strip()
 
-    # اگه room داده شده، بازی رو از اتاق پیدا کن
+    # اگر room داده شده، بازی را از اتاق پیدا کن
     if room_id and room_id in game_rooms:
         game_id = game_rooms[room_id]["game"]
 
     if not game_id:
         return "بازی پیدا نشد. لینک معتبر نیست.", 404
 
-    # بررسی وجود متادیتای بازی
     meta_path = os.path.join(app.static_folder, "games", game_id, "game.json")
     if not os.path.isfile(meta_path):
         return "بازی پیدا نشد.", 404
 
-    import json
     with open(meta_path, "r", encoding="utf-8") as f:
         meta = json.load(f)
     meta.setdefault("id", game_id)
@@ -109,7 +119,7 @@ def play():
 
 @app.route("/api/status")
 def status():
-    """وضعیت آنلاین — برای پولینگ ساده (پشتیبان WebSocket)."""
+    """وضعیت آنلاین — برای پولینگ ساده."""
     with lock:
         return jsonify({
             "online": active_connections,
@@ -118,7 +128,9 @@ def status():
         })
 
 
-# ─── SocketIO: Connection ────────────────────
+# ─────────────────────────────────────────────
+#  SocketIO: Connection
+# ─────────────────────────────────────────────
 @socketio.on("connect")
 def on_connect():
     global active_connections
@@ -134,7 +146,7 @@ def on_connect():
         "online": active_connections,
         "max": MAX_CONNECTIONS,
     })
-    # به همه بگو وضعیت آنلاین عوض شد
+
     socketio.emit("online_update", {
         "online": active_connections,
         "max": MAX_CONNECTIONS,
@@ -146,12 +158,12 @@ def on_connect():
 def on_disconnect():
     global active_connections
     sid = request.sid
+    username = None
+
     with lock:
         if sid in online_users:
             username = online_users.pop(sid)
             active_connections = max(0, active_connections - 1)
-        else:
-            username = None
 
         # پاک‌سازی اتاق‌های بازی
         rooms_to_remove = []
@@ -177,7 +189,9 @@ def on_disconnect():
     })
 
 
-# ─── SocketIO: Chat ──────────────────────────
+# ─────────────────────────────────────────────
+#  SocketIO: Chat
+# ─────────────────────────────────────────────
 @socketio.on("join_chat")
 def on_join_chat(data):
     username = (data or {}).get("username", "").strip()[:20] or "مهمان"
@@ -196,10 +210,11 @@ def on_chat_message(data):
     """پیام متنی یا فایل (base64). فقط broadcast، بدون ذخیره."""
     if not data:
         return
+
     with lock:
         username = online_users.get(request.sid, "مهمان")
 
-    msg_type = data.get("type", "text")  # text | image | video
+    msg_type = data.get("type", "text")
     content = data.get("content", "")
     filename = data.get("filename", "")
 
@@ -208,7 +223,7 @@ def on_chat_message(data):
         if not content.strip():
             return
     else:
-        # محدودیت حجم base64 (تقریباً)
+        # محدودیت حجم base64 (تقریباً ۸MB)
         if len(content) > 12 * 1024 * 1024:
             emit("chat_error", {"message": "فایل خیلی بزرگ است (حداکثر ۸MB)."})
             return
@@ -223,16 +238,17 @@ def on_chat_message(data):
     socketio.emit("chat_message", payload, to="chat")
 
 
-# ─── SocketIO: Game Lobby ────────────────────
+# ─────────────────────────────────────────────
+#  SocketIO: Game Lobby
+# ─────────────────────────────────────────────
 @socketio.on("create_lobby")
 def on_create_lobby(data):
-    """ساخت اتاق بازی — فقط یک نفر اول."""
+    """ساخت اتاق بازی — نفر اول."""
     game_id = (data or {}).get("game", "").strip()
     if not game_id:
         emit("lobby_error", {"message": "بازی نامعتبر است."})
         return
 
-    # بررسی وجود بازی
     meta_path = os.path.join(app.static_folder, "games", game_id, "game.json")
     if not os.path.isfile(meta_path):
         emit("lobby_error", {"message": "بازی پیدا نشد."})
@@ -245,9 +261,8 @@ def on_create_lobby(data):
             "game": game_id,
             "players": [request.sid],
             "started": False,
-            "state": {},
+            "usernames": {request.sid: username},
         }
-        game_rooms[rid]["usernames"] = {request.sid: username}
 
     join_room(rid)
     emit("lobby_created", {
@@ -259,15 +274,18 @@ def on_create_lobby(data):
 
 @socketio.on("join_lobby")
 def on_join_lobby(data):
-    """نفر دوم با لینک وارد اتاق می‌شه."""
+    """نفر دوم با لینک وارد اتاق می‌شود."""
     rid = (data or {}).get("room", "").strip()
+    room = None
+
     with lock:
         room = game_rooms.get(rid)
         if not room:
             emit("lobby_error", {"message": "اتاق پیدا نشد یا منقضی شده."})
             return
+
         if request.sid in room["players"]:
-            # همون نفر دوباره join (مثلاً رفرش)
+            # همان نفر دوباره join (مثلاً رفرش)
             join_room(rid)
             emit("lobby_joined", {
                 "room": rid,
@@ -275,6 +293,7 @@ def on_join_lobby(data):
                 "players": len(room["players"]),
             })
             return
+
         if len(room["players"]) >= 2:
             emit("lobby_error", {"message": "این اتاق پر است (بازی دو نفره)."})
             return
@@ -284,14 +303,16 @@ def on_join_lobby(data):
         room["usernames"][request.sid] = username
         room["started"] = True
         players = list(room["players"])
+        usernames = [room["usernames"][p] for p in players]
 
     join_room(rid)
+
     # به هر دو نفر بگو بازی شروع شد
     socketio.emit("game_start", {
         "room": rid,
         "game": room["game"],
         "players": players,
-        "usernames": [room["usernames"][p] for p in players],
+        "usernames": usernames,
         "you_are_first": players[0],
     }, to=rid)
 
@@ -300,16 +321,17 @@ def on_join_lobby(data):
 def on_game_move(data):
     """حرکت بازی — فقط relay بین دو نفر."""
     rid = (data or {}).get("room", "").strip()
+
     with lock:
         room = game_rooms.get(rid)
         if not room or request.sid not in room["players"]:
             return
         if not room["started"]:
             return
-        # فرستنده رو مشخص کن تا کلاینت بدونه نوبت کیه
+
         payload = dict(data or {})
         payload["from"] = request.sid
-    # به طرف مقابل بفرست
+
     socketio.emit("game_move", payload, to=rid, skip_sid=request.sid)
 
 
@@ -320,11 +342,12 @@ def on_game_reset(data):
         room = game_rooms.get(rid)
         if not room or request.sid not in room["players"]:
             return
-        room["state"] = {}
     socketio.emit("game_reset", {"room": rid}, to=rid)
 
 
-# ─── Main ────────────────────────────────────
+# ─────────────────────────────────────────────
+#  Main (فقط برای اجرای محلی)
+# ─────────────────────────────────────────────
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     socketio.run(app, host="0.0.0.0", port=port, debug=True)
