@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% set active = "chat" %}
+
+{% block title %}چت — الشـن و آنیـل{% endblock %}
+
+{% block content %}
+
+<div class="chat-layout">
+
+  <!-- ── هدر چت ── -->
+  <div class="chat-head">
+    <div class="chat-head-title">
+      <span>💬</span>
+      <span>چت گروهی</span>
+    </div>
+    <div class="chat-head-users" id="chat-users">در حال اتصال...</div>
+  </div>
+
+  <!-- ── پیام‌ها ── -->
+  <div class="chat-messages" id="chat-messages">
+    <div class="chat-empty">
+      <span class="big">💬</span>
+      هنوز پیامی نیست.<br>
+      اولین پیام رو تو بفرست!
+    </div>
+  </div>
+
+  <!-- ── نوار ورودی ── -->
+  <form class="chat-input-bar" id="chat-form" autocomplete="off">
+
+    <button type="button" class="icon-btn" id="file-btn" title="ارسال عکس یا ویدیو">
+      📎
+    </button>
+    <input type="file" id="file-input" accept="image/*,video/*" hidden />
+
+    <input
+      type="text"
+      id="chat-input"
+      placeholder="پیامت رو بنویس..."
+      maxlength="2000"
+      autocomplete="off"
+    />
+
+    <button type="submit" class="icon-btn send" title="ارسال">
+      ➤
+    </button>
+
+  </form>
+
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+{% endblock %}

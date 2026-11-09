@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}الشـن و آنیـل{% endblock %}</title>
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎮</text></svg>" />
+
+  <!-- Socket.IO client -->
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" crossorigin="anonymous"></script>
+
+  {% block head %}{% endblock %}
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ── محتوای اصلی (سمت چپ) ── -->
+  <main class="content">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- ── سایدبار (سمت راست) ── -->
+  <aside class="sidebar">
+
+    <div class="brand">
+      <div class="brand-logo">🎮</div>
+      <div class="brand-text">
+        <div class="brand-title">الشـن و آنیـل</div>
+        <div class="brand-sub">ELSHAN &amp; ANIL</div>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <a href="/" class="nav-item {% if active == 'home' %}active{% endif %}">
+        <span class="nav-icon">🏠</span>
+        <span>خانه</span>
+      </a>
+      <a href="/chat" class="nav-item {% if active == 'chat' %}active{% endif %}">
+        <span class="nav-icon">💬</span>
+        <span>چت</span>
+      </a>
+      <a href="/games" class="nav-item {% if active == 'games' %}active{% endif %}">
+        <span class="nav-icon">🎮</span>
+        <span>بازی‌های زنده</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-spacer"></div>
+
+    <div class="online-box">
+      <div class="online-title">
+        <span>وضعیت آنلاین</span>
+        <span class="pulse-dot"></span>
+      </div>
+      <div>
+        <span class="online-count" id="online-count">…</span>
+        <span style="color:var(--text-mute)"> / ۴ نفر</span>
+      </div>
+      <div id="online-list" style="margin-top:8px;font-size:12px;color:var(--text-mute);line-height:1.7;"></div>
+    </div>
+
+  </aside>
+
+</div>
+
+<!-- ── Toast container ── -->
+<div id="toast" class="toast"></div>
+
+<!-- ── Online status updater (سراسری) ── -->
+<script>
+(function () {
+  // اتصال سراسری socket برای آپدیت شمارنده آنلاین در همه صفحات
+  const socket = io();
+  let username = sessionStorage.getItem('username');
+  if (!username) {
+    username = (prompt('اسمت چیه؟') || '').trim().slice(0, 20) || 'مهمان';
+    sessionStorage.setItem('username', username);
+  }
+
+  socket.on('connect', () => {
+    socket.emit('join_chat', { username });
+  });
+
+  socket.on('rejected', (data) => {
+    showToast(data.reason || 'ظرفیت پر است (۴ نفر)', 'error');
+  });
+
+  socket.on('online_update', (data) => {
+    const countEl = document.getElementById('online-count');
+    if (countEl) countEl.textContent = data.online;
+    const listEl = document.getElementById('online-list');
+    if (listEl) listEl.textContent = (data.users || []).join(' • ');
+  });
+
+  // ── Toast helper (سراسری)
+  window.showToast = function (msg, type = '') {
+    const t = document.getElementById('toast');
+    if (!t) return;
+    t.textContent = msg;
+    t.className = 'toast ' + type;
+    t.classList.add('show');
+    clearTimeout(window.__toastTimer);
+    window.__toastTimer = setTimeout(() => t.classList.remove('show'), 3200);
+  };
+
+  // ── گوش دادن به رویداد سفارشی از سایر اسکریپت‌ها
+  window.addEventListener('app-toast', (e) => {
+    const d = e.detail || {};
+    window.showToast(d.msg || '', d.type || '');
+  });
+})();
+</script>
+
+{% block scripts %}{% endblock %}
+
+</body>
+</html>

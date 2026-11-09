@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% set active = "games" %}
+
+{% block title %}بازی‌های زنده — الشـن و آنیـل{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+  <h1 class="page-title">
+    <span>🎮</span>
+    <span>بازی‌های زنده</span>
+  </h1>
+  <p class="page-subtitle">
+    یه بازی رو انتخاب کن، لابی بساز و لینک رو برای دوستت بفرست.
+    هر بازی <strong>دو نفره</strong> و آنی‌ست.
+  </p>
+</div>
+
+{% if games %}
+
+  <div class="games-grid" id="games-grid">
+
+    {% for g in games %}
+      <div class="game-card">
+
+        <div class="game-icon">{{ g.icon or "🎮" }}</div>
+
+        <div class="game-name">{{ g.name }}</div>
+
+        <div class="game-desc">{{ g.description }}</div>
+
+        <div class="game-meta">
+          <span>👥 {{ g.players or 2 }} نفره</span>
+          <span>⚡ آنلاین</span>
+        </div>
+
+        <div class="game-actions">
+          <button
+            type="button"
+            class="btn btn-primary"
+            data-create-lobby="{{ g.id }}"
+          >
+            ساخت لابی
+          </button>
+        </div>
+
+      </div>
+    {% endfor %}
+
+  </div>
+
+{% else %}
+
+  <div class="lobby-card">
+    <div class="lobby-icon">😴</div>
+    <div class="lobby-title">هنوز بازی‌ای اضافه نشده</div>
+    <div class="lobby-desc">
+      به‌زودی بازی‌ها اضافه می‌شن. فعلاً می‌تونی بری چت کنی.
+    </div>
+    <a href="/chat" class="btn btn-primary">بریم چت</a>
+  </div>
+
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/games.js') }}"></script>
+{% endblock %}

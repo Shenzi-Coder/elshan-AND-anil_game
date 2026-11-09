@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% set active = "games" %}
+
+{% block title %}{{ game.name }} — الشـن و آنیـل{% endblock %}
+
+{% block head %}
+<style>
+  /* استایل اختصاصی این صفحه — فقط چیزهای لازم برای چیدمان تخته */
+  .play-page {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 6px;
+  }
+  .play-header {
+    text-align: center;
+    margin-bottom: 18px;
+  }
+  .play-header h1 {
+    font-size: 24px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+  }
+  .play-header .sub {
+    color: var(--text-dim);
+    font-size: 13px;
+    margin-top: 6px;
+  }
+  .players-row {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+  }
+  .player-chip {
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 8px 16px;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-dim);
+  }
+  .player-chip.active {
+    border-color: var(--accent);
+    color: var(--text);
+    box-shadow: 0 0 0 3px rgba(124,92,255,.15);
+  }
+  .player-chip .sym {
+    font-weight: 800;
+    color: var(--accent-2);
+  }
+  .player-chip.o .sym { color: var(--accent-3); }
+  .waiting-area {
+    text-align: center;
+    margin: 8px 0 20px;
+    color: var(--text-dim);
+    font-size: 14px;
+  }
+  .waiting-area .spinner { margin: 0 auto 12px; }
+  .lobby-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 14px;
+  }
+  .back-link {
+    display: inline-block;
+    margin-top: 18px;
+    color: var(--text-mute);
+    text-decoration: none;
+    font-size: 13px;
+  }
+  .back-link:hover { color: var(--accent-2); }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="play-page">
+
+  <!-- ── هدر صفحه بازی ── -->
+  <div class="play-header">
+    <h1>
+      <span>{{ game.icon or "🎮" }}</span>
+      <span>{{ game.name }}</span>
+    </h1>
+    <div class="sub">{{ game.description }}</div>
+  </div>
+
+  <!-- ── بازیکن‌ها ── -->
+  <div class="players-row">
+    <div class="player-chip x">
+      <span class="sym">X</span>
+      <span>بازیکن اول</span>
+    </div>
+    <div class="player-chip o">
+      <span class="sym">O</span>
+      <span>بازیکن دوم</span>
+    </div>
+  </div>
+
+  <!-- ── وضعیت بازی ── -->
+  <div class="ttt-status" id="ttt-status">⏳ در حال آماده‌سازی...</div>
+
+  <!-- ── لینک دعوت (فقط نفر اول) ── -->
+  <div
+    class="link-box"
+    id="ttt-link-box"
+    style="display:none;max-width:520px;width:100%;"
+  >
+    <input
+      type="text"
+      id="ttt-link-input"
+      readonly
+      placeholder="لینک لابی"
+    />
+    <button type="button" class="btn btn-primary" id="ttt-copy-btn">
+      📋 کپی
+    </button>
+  </div>
+
+  <!-- ── ناحیه انتظار (نفر اول منتظر) ── -->
+  <div class="waiting-area" id="ttt-waiting" style="display:none;">
+    <div class="spinner"></div>
+    <div>منتظر ورود نفر دوم... لینک رو برای دوستت بفرست!</div>
+  </div>
+
+  <!-- ── تخته بازی دوز ── -->
+  <div class="ttt-wrap">
+    <div class="ttt-board" id="ttt-board"></div>
+
+    <div class="lobby-actions">
+      <button type="button" class="btn btn-secondary" id="ttt-reset">
+        🔄 بازی جدید
+      </button>
+      <a href="/games" class="btn btn-ghost">← بازگشت به بازی‌ها</a>
+    </div>
+  </div>
+
+  <a href="/games" class="back-link">بازگشت به لیست بازی‌ها</a>
+
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // مقادیر ثابت که اسکریپت بازی ازشون استفاده می‌کنه
+  window.GAME_ROOM = "{{ room_id }}";
+  window.GAME_ID   = "{{ game.id }}";
+</script>
+<script src="{{ url_for('static', filename='js/tictactoe.js') }}"></script>
+{% endblock %}

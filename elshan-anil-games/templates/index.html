@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% set active = "home" %}
+
+{% block title %}خانه — الشـن و آنیـل{% endblock %}
+
+{% block content %}
+
+<section class="hero">
+
+  <div class="hero-logo">🎮</div>
+
+  <h1>الشـن و آنیـل</h1>
+
+  <p>
+    خوش اومدی به دنیای ما! اینجا می‌تونی با هم چت کنی،
+    عکس و ویدیو بفرستی و با دوستات بازی‌های دو نفره انجام بدی.
+    همه‌چیز زنده و لحظه‌ای — بدون نیاز به ثبت‌نام.
+  </p>
+
+  <div class="cta-row">
+    <a href="/chat" class="btn btn-primary">
+      <span>💬</span>
+      <span>بریم چت</span>
+    </a>
+    <a href="/games" class="btn btn-secondary">
+      <span>🎮</span>
+      <span>بازی‌های زنده</span>
+    </a>
+  </div>
+
+</section>
+
+<section style="max-width:780px;margin:60px auto 0;">
+
+  <div class="games-grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));">
+
+    <div class="game-card" style="cursor:default;">
+      <div class="game-icon">💬</div>
+      <div class="game-name">چت گروهی</div>
+      <div class="game-desc">
+        پیام متنی، عکس و ویدیو — همه در لحظه به همه نمایش داده می‌شه.
+      </div>
+      <a href="/chat" class="btn btn-ghost" style="justify-content:center;">ورود</a>
+    </div>
+
+    <div class="game-card" style="cursor:default;">
+      <div class="game-icon">🎯</div>
+      <div class="game-name">بازی دو نفره</div>
+      <div class="game-desc">
+        لابی بساز، لینک رو برای دوستت بفرست، و همون لحظه شروع کنید.
+      </div>
+      <a href="/games" class="btn btn-ghost" style="justify-content:center;">دیدن بازی‌ها</a>
+    </div>
+
+    <div class="game-card" style="cursor:default;">
+      <div class="game-icon">⚡</div>
+      <div class="game-name">بدون ثبت‌نام</div>
+      <div class="game-desc">
+        فقط اسمت رو بگو و شروع کن. حداکثر ۴ نفر همزمان آنلاین.
+      </div>
+      <span class="game-meta">۴ نفر ظرفیت</span>
+    </div>
+
+  </div>
+
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // اتصال سراسری در base.html انجام شد — اینجا لازم نیست چیزی
+</script>
+{% endblock %}

@@ -1,0 +1,8 @@
+{
+  "id": "tictactoe",
+  "name": "دوز",
+  "description": "بازی کلاسیک دو نفره — سه تا در یک ردیف بچین!",
+  "icon": "⭕",
+  "players": 2,
+  "script": "/static/js/tictactoe.js"
+}
